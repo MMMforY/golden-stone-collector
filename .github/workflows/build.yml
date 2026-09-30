@@ -57,4 +57,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          gh release create "$GITHUB_REF_NAME" --prerelease --title "$GITHUB_REF_NAME 预览版" --notes-file docs/RELEASE.md artifacts/*/*.zip artifacts/*/*.sha256 artifacts/*/smoke-*.json
+          shopt -s globstar nullglob
+          files=(artifacts/**/*.zip artifacts/**/*.sha256 artifacts/**/smoke-*.json)
+          test "${#files[@]}" -ge 6
+          gh release create "$GITHUB_REF_NAME" --prerelease --title "$GITHUB_REF_NAME 预览版" --notes-file docs/RELEASE.md "${files[@]}"
