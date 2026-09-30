@@ -42,7 +42,15 @@ def main():
         command += ["--target-architecture","arm64","--osx-bundle-identifier","com.goldenstone.collector",
                     "--hidden-import","AppKit","--hidden-import","Foundation"]
     command.append(str(ROOT/"scripts/launcher.py"))
-    subprocess.run(command,cwd=ROOT,check=True)
+    build_environment = os.environ.copy()
+    if not mac:
+        # Do not bundle unrelated ICU/OpenSSL DLLs from Git, WPS, or other PATH
+        # entries. Qt uses Windows' own ICU; a same-name Git ICU has a different ABI.
+        import PySide6
+        system_root = Path(os.environ.get("SystemRoot", "C:/Windows"))
+        build_environment["PATH"] = os.pathsep.join(map(str,[Path(sys.executable).parent,
+            Path(PySide6.__file__).parent, system_root/"System32", system_root]))
+    subprocess.run(command,cwd=ROOT,check=True,env=build_environment)
     dist=ROOT/"dist"
     app_path=dist/("GoldenStoneCollector.app" if mac else "GoldenStoneCollector")
     if mac:
@@ -64,7 +72,8 @@ def main():
         subprocess.run(["ditto","-c","-k","--sequesterRsrc","--keepParent",str(app_path),str(archive)],check=True)
     else:
         archive=Path(shutil.make_archive(str(dist/bundle),"zip",dist,app_path.name))
-    sha=hashlib.file_digest(archive.open("rb"),"sha256").hexdigest()
+    with archive.open("rb") as handle:
+        sha=hashlib.file_digest(handle,"sha256").hexdigest()
     (dist/(bundle+".sha256")).write_text(sha+"  "+archive.name+"\n",encoding="ascii")
     print(str(archive))
 

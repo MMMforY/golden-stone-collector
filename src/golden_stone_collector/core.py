@@ -455,6 +455,13 @@ class CaptureSession:
         self.run_id = str(uuid.uuid4())
         self.has_prior_content = False
 
+    def _prepare_append(self, note=False):
+        if self.entries and file_sha256(self.card_path) != self.entries[-1].expected_card_hash:
+            if note:
+                raise RuntimeError("资料卡已被外部编辑，不能安全接续旧感想。请先收集新内容，或在编辑器中手动添加感想。")
+            self.entries.clear()
+            self.last_note = None
+
     def start(self) -> Path:
         parent = self.capture_root
         if self.options.group_by_month:
@@ -554,6 +561,7 @@ class CaptureSession:
 
     def _update_frontmatter_preserving_offsets(self, updates: dict[str, str]) -> None:
         card_path, _ = self._require_active()
+        self._prepare_append()
         before_size = card_path.stat().st_size
         update_frontmatter(card_path, updates)
         delta = card_path.stat().st_size - before_size
@@ -562,6 +570,8 @@ class CaptureSession:
                 entry.start_offset += delta
             if self.last_note:
                 self.last_note.start_offset += delta
+        if self.entries:
+            self._refresh_expected_suffix(card_path, self.entries[-1])
 
     def _record_source_context(self, source_app_hint: str, source_url: str) -> None:
         if re.fullmatch(r"https?://\S+", source_url, flags=re.IGNORECASE):
@@ -685,6 +695,7 @@ class CaptureSession:
     ) -> None:
         card_path, _ = self._require_active()
         body = body.rstrip()
+        self._prepare_append()
         attachments = list(attachment_paths or [])
         self._record_source_context(source_app_hint, source_url)
         start_offset = card_path.stat().st_size
@@ -1016,10 +1027,11 @@ class CaptureSession:
 
     def add_note(self, text: str) -> None:
         card_path, _ = self._require_active()
+        self._prepare_append(note=True)
         stripped = text.strip()
         if not stripped:
             raise ValueError("个人感想不能为空")
-        if self.item_count < 1:
+        if not self.entries:
             raise RuntimeError("当前资料卡还没有可添加个人感想的内容")
         if self._continue_last_note(card_path, stripped):
             return

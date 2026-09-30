@@ -55,3 +55,17 @@ def test_atomic_write_failure_preserves_note(tmp_path,monkeypatch):
     with pytest.raises(PermissionError): session.add_note("第二段")
     assert card.read_bytes()==original
     assert not list(card.parent.glob(".gs-*.tmp"))
+
+
+def test_external_edit_then_new_capture_drops_old_undo(tmp_path):
+    session=CaptureSession(tmp_path)
+    card=session.start()
+    session.add_text("第一项")
+    card.write_text(card.read_text(encoding="utf8").replace("### 资料说明","### 改过的说明"),encoding="utf8")
+    with pytest.raises(RuntimeError): session.add_note("不安全的感想")
+    session.add_text("第二项")
+    assert len(session.entries)==1
+    session.undo_last()
+    with pytest.raises(RuntimeError): session.undo_last()
+    text=card.read_text(encoding="utf8")
+    assert "改过的说明" in text and "第一项" in text and "第二项" not in text

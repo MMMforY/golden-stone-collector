@@ -3,7 +3,7 @@ import tempfile
 
 def test_legacy_regression() -> None:
     with tempfile.TemporaryDirectory(prefix="golden-stone-continuous-") as temp:
-        root = Path(temp)
+        root = Path(temp).resolve()
 
         external = root.parent / f"capture-test-{os.getpid()}.txt"
         external.write_text("外部文件保持不变", encoding="utf-8")

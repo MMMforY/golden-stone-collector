@@ -64,23 +64,28 @@ class HotkeyManager:
         self.backend = backend
         self.platform = platform
         self.bindings: dict[str, str] = {}
+        self.registered: dict[str, str] = {}
         self.suspended = False
 
     def replace(self, desired: dict) -> None:
         validate_bindings(desired, self.platform)
         previous = dict(self.bindings)
         self.backend.clear()
+        self.registered = {}
         try:
             for action, text in desired.items():
                 if text:
                     self.backend.register(action, parse_shortcut(text, self.platform))
+                    self.registered[action] = text
         except Exception as exc:
             self.backend.clear()
+            self.registered = {}
             failed = []
             for action, text in previous.items():
                 if text:
                     try:
                         self.backend.register(action, parse_shortcut(text, self.platform))
+                        self.registered[action] = text
                     except Exception:
                         failed.append(action)
             self.bindings = previous
@@ -91,6 +96,7 @@ class HotkeyManager:
 
     def suspend(self):
         self.backend.clear()
+        self.registered = {}
         self.suspended = True
 
     def resume(self):
@@ -98,4 +104,5 @@ class HotkeyManager:
 
     def close(self):
         self.backend.clear()
+        self.registered = {}
         self.backend.close()

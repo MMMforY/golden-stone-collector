@@ -161,7 +161,7 @@ class MainWindow(QMainWindow):
             self.buttons[action].setEnabled(active)
         self.buttons["pause"].setText("恢复收集" if self.c.paused else "暂停收集")
         self.tray.setToolTip("Golden Stone · " + self.status.text())
-        actual = self.c.hotkeys.bindings
+        actual = self.c.hotkeys.registered
         self.hotkey_status.setText("热键已注册：" + "  ·  ".join(f"{ACTION_LABELS[a]} {key}" for a,key in actual.items() if key) if actual and any(actual.values()) else "没有已注册的全局快捷键，可使用按钮或到设置中更改。")
         for action,button in self.buttons.items():
             button.setToolTip(actual.get(action,"") or "未绑定快捷键")

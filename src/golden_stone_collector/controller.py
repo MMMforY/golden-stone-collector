@@ -165,6 +165,7 @@ class Controller(QObject):
             else:
                 self.hotkeys.backend.clear()
                 self.hotkeys.bindings = {}
+                self.hotkeys.registered = {}
             raise
         self.config = desired
         self.timer.setInterval(desired.poll_ms)
