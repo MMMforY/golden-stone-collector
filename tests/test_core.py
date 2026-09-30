@@ -69,3 +69,38 @@ def test_external_edit_then_new_capture_drops_old_undo(tmp_path):
     with pytest.raises(RuntimeError): session.undo_last()
     text=card.read_text(encoding="utf8")
     assert "改过的说明" in text and "第一项" in text and "第二项" not in text
+
+
+def test_old_five_property_manual_card(tmp_path):
+    source=Path(__file__).resolve().parents[1]/"templates/手动资料卡.md"
+    directory=tmp_path/"00-inbox/待整理资料/manual"
+    directory.mkdir(parents=True)
+    card=directory/"旧手动卡.md"
+    original=source.read_text(encoding="utf8").replace("{{date:YYYY-MM-DD}} {{time:HH:mm}}","2026-01-01 12:00")+"\n手动原文。\n"
+    card.write_text(original,encoding="utf8")
+    session=CaptureSession.resume(tmp_path,card)
+    session.add_text("程序续写")
+    session.stop()
+    assert card.read_text(encoding="utf8").startswith(original)
+
+
+def test_rename_rebases_undo_attachments(tmp_path):
+    from PIL import Image
+    session=CaptureSession(tmp_path)
+    session.start()
+    session.add_image(Image.new("RGB",(2,2),"white"))
+    card=session.rename("改名后撤销")
+    session.undo_last()
+    assert not list((card.parent/"附件").iterdir())
+
+
+def test_changed_attachment_not_deleted(tmp_path):
+    from PIL import Image
+    session=CaptureSession(tmp_path)
+    card=session.start()
+    session.add_image(Image.new("RGB",(2,2),"white"))
+    attachment=session.entries[-1].attachment_paths[0]
+    attachment.write_bytes(b"user edited this file")
+    before=card.read_bytes()
+    with pytest.raises(RuntimeError,match="附件已被外部修改"): session.undo_last()
+    assert attachment.read_bytes()==b"user edited this file" and card.read_bytes()==before

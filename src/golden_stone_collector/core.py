@@ -9,7 +9,7 @@ import shutil
 import tempfile
 import uuid
 import urllib.parse
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from html.parser import HTMLParser
 from pathlib import Path
@@ -81,6 +81,7 @@ class CapturedBlock:
     expected_suffix: bytes
     event_id: str
     expected_card_hash: str = ""
+    attachment_hashes: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -728,9 +729,11 @@ class CaptureSession:
             except Exception:
                 LOGGER.exception("machine metadata generation failed; visible capture preserved")
         prefix = self._append_prefix(card_path, include_divider=self.has_prior_content)
+        attachment_hashes = {p.name:file_sha256(p) for p in attachments}
         append_atomic(card_path, prefix + rendered + "\n\n")
         self.item_count += 1
         entry = CapturedBlock(start_offset, kind, attachments, b"", event_id)
+        entry.attachment_hashes = attachment_hashes
         self._refresh_expected_suffix(card_path, entry)
         self.entries.append(entry)
         self.last_note = None
@@ -1081,6 +1084,10 @@ class CaptureSession:
         if not self.entries:
             raise RuntimeError("当前没有可以撤销的收集内容")
         entry = self.entries[-1]
+        for path in entry.attachment_paths:
+            if path.exists() and (not path.resolve().is_relative_to(self.attachment_dir.resolve())
+                                 or file_sha256(path) != entry.attachment_hashes.get(path.name)):
+                raise RuntimeError("最近一项的附件已被外部修改；为避免误删，无法自动撤销。")
         with card_path.open("rb") as handle:
             handle.seek(entry.start_offset)
             actual_suffix = handle.read()
@@ -1111,6 +1118,8 @@ class CaptureSession:
             raise RuntimeError("当前还没有可命名的资料组")
         old_dir = self.session_dir
         old_card = self.card_path
+        if old_dir.resolve() == self.capture_root or any(p != old_card for p in old_dir.glob("*.md")):
+            raise RuntimeError("此文件夹包含多张笔记或就是收集根目录，不能整体重命名。请先将资料卡放入独立资料组文件夹。")
         clean_title = safe_name(title, 100)
         candidate = clean_title
         suffix = 2
@@ -1154,6 +1163,8 @@ class CaptureSession:
                 self.session_dir = current_dir
                 self.attachment_dir = current_dir / "附件"
                 self.card_path = current_card
+                for entry in self.entries:
+                    entry.attachment_paths = [self.attachment_dir / path.name for path in entry.attachment_paths]
 
             error_code = getattr(exc, "winerror", None) or getattr(exc, "errno", None)
             LOGGER.exception(
@@ -1178,6 +1189,8 @@ class CaptureSession:
         self.session_dir = target_dir
         self.attachment_dir = target_dir / "附件"
         self.card_path = target_dir / f"{candidate}.md"
+        for entry in self.entries:
+            entry.attachment_paths = [self.attachment_dir / path.name for path in entry.attachment_paths]
         LOGGER.info("rename completed target_card=%s target_dir=%s", self.card_path, target_dir)
         return self.card_path
 

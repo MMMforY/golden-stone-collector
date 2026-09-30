@@ -6,7 +6,7 @@ from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
 import sys
-from PySide6.QtCore import QTimer, QLockFile, QObject, Signal, QEvent
+from PySide6.QtCore import QTimer, QLockFile, QObject, Signal, QEvent, QTranslator, QLibraryInfo
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication, QMessageBox
 from . import __version__
@@ -51,6 +51,10 @@ def main():
     app.setWindowIcon(icon())
     app.setQuitOnLastWindowClosed(False)
     app.setStyleSheet(STYLESHEET)
+    translator=QTranslator(app)
+    bundled_translation=Path(__file__).parent/"assets/qtbase_zh_CN.qm"
+    if translator.load(str(bundled_translation)) or translator.load("qtbase_zh_CN",QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)):
+        app.installTranslator(translator)
     store = ConfigStore()
     store.directory.mkdir(parents=True,exist_ok=True)
     identity = hashlib.sha256(str(store.directory.resolve()).encode()).hexdigest()[:24]

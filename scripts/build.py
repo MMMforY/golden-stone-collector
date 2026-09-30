@@ -16,7 +16,7 @@ def main():
     from PySide6.QtWidgets import QApplication
     from PySide6.QtSvg import QSvgRenderer
     from PySide6.QtGui import QImage,QPainter
-    from PySide6.QtCore import Qt
+    from PySide6.QtCore import Qt,QLibraryInfo
     from PIL import Image
     app=QApplication.instance() or QApplication([])
     build=ROOT/"build"
@@ -35,6 +35,8 @@ def main():
         "--name","GoldenStoneCollector","--paths",str(ROOT/"src"),"--specpath",str(build),
         "--icon",str(build/f"feather.{extension}"),"--add-data",str(ROOT/"src/golden_stone_collector/assets")+":golden_stone_collector/assets",
         "--hidden-import","PySide6.QtSvg","--exclude-module","tkinter","--exclude-module","pytest"]
+    translation=Path(QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath))/"qtbase_zh_CN.qm"
+    command += ["--add-data",str(translation)+":golden_stone_collector/assets"]
     if mac:
         if platform.machine()!="arm64":
             raise RuntimeError("Mac 包需要 Apple Silicon arm64 runner。")
@@ -53,6 +55,23 @@ def main():
     subprocess.run(command,cwd=ROOT,check=True,env=build_environment)
     dist=ROOT/"dist"
     app_path=dist/("GoldenStoneCollector.app" if mac else "GoldenStoneCollector")
+    guide=app_path/"Contents/Resources/使用说明" if mac else app_path/"使用说明"
+    guide.mkdir(parents=True,exist_ok=True)
+    for document in ("README.md","THIRD_PARTY_NOTICES.md"):
+        shutil.copy2(ROOT/document,guide/document)
+    for directory in ("docs","templates","licenses"):
+        shutil.copytree(ROOT/directory,guide/directory,dirs_exist_ok=True)
+    from importlib.metadata import distribution,PackageNotFoundError
+    for name in ("Pillow","platformdirs","PySide6","PySide6_Essentials","shiboken6","pyobjc-core","pyobjc-framework-Cocoa"):
+        try:
+            package=distribution(name)
+        except PackageNotFoundError:
+            continue
+        for entry in package.files or []:
+            if ".dist-info/licenses/" in str(entry).replace("\\","/"):
+                target=guide/"licenses"/name/Path(str(entry)).name
+                target.parent.mkdir(parents=True,exist_ok=True)
+                shutil.copy2(package.locate_file(entry),target)
     if mac:
         import plistlib
         info=app_path/"Contents/Info.plist"

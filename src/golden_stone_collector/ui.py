@@ -214,7 +214,7 @@ class MainWindow(QMainWindow):
         path = self.target_path()
         if not path:
             return
-        title,okay = self.dialog(lambda:QInputDialog.getText(self,"统一命名","文件夹与笔记将一起命名：",text=path.stem))
+        title,okay = self.ask_title("统一命名","文件夹与笔记将一起命名：",path.stem)
         if okay and title.strip():
             def rename():
                 if self.c.session and self.c.session.card_path == path:
@@ -250,13 +250,23 @@ class MainWindow(QMainWindow):
         if not self.c.active:
             return
         self.reveal()
-        title,okay = self.dialog(lambda:QInputDialog.getText(self,"结束并命名","输入标题；文件夹与笔记一起命名。取消则继续收集：",text=self.c.session.card_path.stem))
+        title,okay = self.ask_title("结束并命名","输入标题；文件夹与笔记一起命名。取消则继续收集：",self.c.session.card_path.stem)
         if okay:
             def finish():
                 path = self.c.finish(title)
                 if self.c.config.open_on_stop:
                     open_card(Path(self.c.config.vault_path),path)
             self.safe(finish)
+
+    def ask_title(self, title, prompt, current):
+        dialog=QInputDialog(self)
+        dialog.setWindowTitle(title)
+        dialog.setLabelText(prompt)
+        dialog.setTextValue(current)
+        dialog.setOkButtonText("确定")
+        dialog.setCancelButtonText("取消")
+        accepted=self.dialog(dialog.exec)==QDialog.DialogCode.Accepted
+        return dialog.textValue(),accepted
 
     def note(self):
         if not self.c.active or not self.c.session.entries:

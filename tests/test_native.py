@@ -13,7 +13,7 @@ def test_native_sequence_and_hotkey_conflict(qapp):
     first=hotkey_backend(lambda action:None)
     second=hotkey_backend(lambda action:None)
     platform="windows" if sys.platform=="win32" else "macos"
-    key=parse_shortcut("Ctrl+Alt+Shift+F7" if platform=="windows" else "Cmd+Option+Shift+7",platform)
+    key=parse_shortcut("Ctrl+Alt+Shift+F8" if platform=="windows" else "Cmd+Option+Shift+8",platform)
     try:
         first.register("show",key)
         with pytest.raises(RuntimeError): second.register("show",key)

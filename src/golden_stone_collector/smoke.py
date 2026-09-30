@@ -30,7 +30,7 @@ def run(report: Path):
         backend=hotkey_backend(lambda _:None)
         try:
             os_key="macos" if platform.system()=="Darwin" else "windows"
-            backend.register("show",parse_shortcut("Cmd+Option+Shift+8" if os_key=="macos" else "Ctrl+Alt+Shift+F6",os_key))
+            backend.register("show",parse_shortcut("Cmd+Option+Shift+9" if os_key=="macos" else "Ctrl+Alt+Shift+F9",os_key))
         finally:
             backend.close()
         from .theme import icon

@@ -7,7 +7,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QFormLayout,QTabWidget,QWidget,
     QLabel,QPushButton,QLineEdit,QComboBox,QCheckBox,QSpinBox,QPlainTextEdit,QTextBrowser,
-    QDialogButtonBox,QFileDialog,QMessageBox,QGroupBox)
+    QDialogButtonBox,QFileDialog,QMessageBox,QGroupBox,QScrollArea)
 from .config import ACTION_LABELS, WINDOWS_KEYS, MAC_KEYS, current_platform
 from .core import DEFAULT_BODY, render_template
 from .hotkeys import parse_shortcut
@@ -217,7 +217,13 @@ class SettingsDialog(QDialog):
         form.addRow(label,spin)
 
     def general_tab(self):
-        _, form = self.tab_form("界面与高级")
+        content = QWidget()
+        form = QFormLayout(content)
+        form.setSpacing(12)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(content)
+        self.tabs.addTab(scroll,"界面与高级")
         for label,name in (("窗口置顶","always_on_top"),("启动时显示窗口","show_on_start"),
                            ("开启无声保存提示","notifications"),("结束后打开资料卡","open_on_stop"),
                            ("登录电脑时自动启动（默认关闭）","launch_at_login")):
@@ -307,6 +313,7 @@ class SettingsDialog(QDialog):
         try:
             self.controller.apply_config(self.values(),backup=self.imported)
         except Exception as exc:
+            self.controller.hotkeys.suspend()
             self.message.setText("保存失败：" + str(exc))
             self.message.setStyleSheet("color: #AF3029;")
             return
